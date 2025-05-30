@@ -2,14 +2,23 @@
     "version": 2,
     "builds": [
         {
-            "src": "wsgi.py",
+            "src": "app.py",
             "use": "@vercel/python"
         }
     ],
     "routes": [
         {
             "src": "/(.*)",
-            "dest": "wsgi.py"
+            "dest": "app.py",
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Accept",
+                "X-Frame-Options": "ALLOW-FROM https://mp.weixin.qq.com/",
+                "Content-Security-Policy": "frame-ancestors 'self' https://mp.weixin.qq.com/",
+                "X-Content-Type-Options": "nosniff",
+                "Referrer-Policy": "no-referrer-when-downgrade"
+            }
         }
     ]
 }

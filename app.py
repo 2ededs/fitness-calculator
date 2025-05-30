@@ -1,17 +1,47 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, make_response
 import os
 import logging
 from datetime import datetime
+from functools import wraps
 
 app = Flask(__name__)
+app.config['JSON_AS_ASCII'] = False
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def add_cors_headers(response):
+    """添加CORS和安全相关的响应头"""
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'X-Requested-With, Content-Type, Accept'
+    response.headers['X-Frame-Options'] = 'ALLOW-FROM https://mp.weixin.qq.com/'
+    response.headers['Content-Security-Policy'] = "frame-ancestors 'self' https://mp.weixin.qq.com/"
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Referrer-Policy'] = 'no-referrer-when-downgrade'
+    return response
+
+@app.after_request
+def after_request(response):
+    """每个响应后添加必要的头信息"""
+    return add_cors_headers(response)
+
+def handle_options_request(f):
+    """处理OPTIONS请求的装饰器"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if request.method == 'OPTIONS':
+            response = make_response()
+            response = add_cors_headers(response)
+            return response
+        return f(*args, **kwargs)
+    return decorated_function
+
 // ... existing code ...
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/', methods=['GET', 'POST', 'OPTIONS'])
+@handle_options_request
 def index():
     result = None
     error = None
@@ -72,8 +102,9 @@ def index():
         except (ValueError, TypeError) as e:
             error = "请输入有效的数值"
             logger.error(f"Error processing form: {str(e)}")
-    
-    return render_template('index.html', result=result, error=error)
+
+    response = make_response(render_template('index.html', result=result, error=error))
+    return response
 
 @app.route('/health')
 def health():
@@ -83,4 +114,7 @@ def health():
         'user_agent': request.headers.get('User-Agent', '')
     })
 
-// ... existing code ...
+if __name__ == '__main__':
+    # 使用环境变量或默认值
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, ssl_context='adhoc')  # 添加SSL支持
